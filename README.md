@@ -1,47 +1,62 @@
-<div align="center">
-<img alt="Portfolio" src="https://github.com/dillionverma/portfolio/assets/16860528/57ffca81-3f0a-4425-b31d-094f61725455" width="90%">
-</div>
+# Habib Ur Rehman — Portfolio
 
-# Portfolio [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdillionverma%2Fportfolio)
+Personal portfolio and blog of **Habib Ur Rehman**, a Senior Software Engineer building multi-tenant SaaS, e-commerce and POS platforms with Laravel, NestJS, Vue.js and Next.js.
 
-Built with next.js, [shadcn/ui](https://ui.shadcn.com/), and [magic ui](https://magicui.design/), deployed on Vercel.
+- **GitHub:** [@habibrajput](https://github.com/habibrajput)
+- **LinkedIn:** [in/habibrajput](https://linkedin.com/in/habibrajput)
+- **Email:** [findhabibrajput@gmail.com](mailto:findhabibrajput@gmail.com)
 
-# Features
+## What's inside
 
-- Setup only takes a few minutes by editing the [single config file](./src/data/resume.tsx)
-- Built using Next.js 14, React, Typescript, Shadcn/UI, TailwindCSS, Framer Motion, Magic UI
-- Includes a blog
-- Responsive for different devices
-- Optimized for Next.js and Vercel
+- **Home** — about, work experience, education, certifications, skills, GitHub activity, key achievements, projects and contact
+- **Blog** — technical write-ups from real projects, written in MDX
+- Light and dark themes, responsive down to phone width
 
-# Getting Started Locally
+## Tech stack
 
-1. Clone this repository to your local machine:
+- [Next.js 16](https://nextjs.org/) (App Router) · React 19 · TypeScript
+- [Tailwind CSS v4](https://tailwindcss.com/) · [shadcn/ui](https://ui.shadcn.com/) · [Magic UI](https://magicui.design/) · [Motion](https://motion.dev/)
+- [Content Collections](https://www.content-collections.dev/) + MDX for the blog, with [Shiki](https://shiki.style/) syntax highlighting
+- [simple-icons](https://simpleicons.org/) for brand logos · [react-github-calendar](https://github.com/grubersjoe/react-github-calendar) for the contribution chart
 
-   ```bash
-   git clone https://github.com/dillionverma/portfolio
-   ```
+## Running locally
 
-2. Move to the cloned directory
+Requires Node.js 20.9+ and pnpm.
 
-   ```bash
-   cd portfolio
-   ```
+```bash
+pnpm install
+pnpm dev
+```
 
-3. Install dependencies:
+Then open [http://localhost:3000](http://localhost:3000).
 
-   ```bash
-   pnpm install
-   ```
+Other scripts:
 
-4. Start the local Server:
+```bash
+pnpm build   # production build
+pnpm start   # serve the production build
+pnpm lint    # run ESLint
+```
 
-   ```bash
-   pnpm dev
-   ```
+## Editing content
 
-5. Open the [Config file](./src/data/resume.tsx) and make changes
+| What | Where |
+| --- | --- |
+| Profile, work, education, skills, projects, certifications, achievements | [`src/data/resume.tsx`](./src/data/resume.tsx) |
+| Blog posts (one `.mdx` file per post) | [`content/`](./content) |
+| Images, logos, project screenshots, certificate PDFs | [`public/`](./public) |
 
-# License
+A blog post needs this frontmatter:
 
-Licensed under the [MIT license](https://github.com/dillionverma/portfolio/blob/main/LICENSE.md).
+```mdx
+---
+title: "Post title"
+publishedAt: "2026-09-24"
+summary: "One or two sentences shown in the list and link previews."
+author: "Habib Ur Rehman"
+---
+```
+
+## Credits
+
+Built on the open-source [portfolio template](https://github.com/dillionverma/portfolio) by Dillion Verma, licensed under the [MIT license](./LICENSE).
