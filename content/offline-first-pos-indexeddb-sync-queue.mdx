@@ -1,0 +1,124 @@
+---
+title: "Keeping a Web POS Selling When the Wi-Fi Drops"
+publishedAt: "2026-08-20"
+summary: "A restaurant can't stop taking orders because the router rebooted. How I added an offline fallback mode to TableTab's POS with an IndexedDB menu snapshot, a local order queue, and automatic sync on reconnect."
+author: "Habib Ur Rehman"
+---
+
+A web-based POS has one weakness a native till doesn't: it depends on the network. In a busy restaurant, "the internet is down" can't mean "we stop taking orders". So I added an **offline fallback mode** to TableTab's POS. The goal was narrow and practical:
+
+1. Keep showing the menu.
+2. Keep accepting orders.
+3. Send them to the server automatically once the connection is back.
+
+It's entirely client-side — no backend changes were needed.
+
+## Step 1: Know when you're offline
+
+`navigator.onLine` plus the `online`/`offline` events is enough to drive the UI:
+
+```ts
+export function useOnlineStatus() {
+  const [online, setOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
+
+  return online;
+}
+```
+
+`navigator.onLine` can report true on a network with no real internet, so the sync step (below) also treats a failed request as "still offline" rather than trusting the flag alone.
+
+## Step 2: Snapshot the menu into IndexedDB
+
+While online, the POS saves the full menu. My first version used `localStorage`, but large catalogs hit its ~5 MB limit quickly, so the snapshot moved to **IndexedDB**. I wrote a tiny promise wrapper around one key-value store instead of pulling in a library:
+
+```ts
+export async function saveMenuSnapshot(items: MenuItem[]) {
+  await idbSet("menu-snapshot", { items, savedAt: Date.now() });
+}
+
+export async function loadMenuSnapshot() {
+  return (await idbGet<{ items: MenuItem[] }>("menu-snapshot"))?.items ?? [];
+}
+```
+
+The product grid then uses whichever source is available: live items when online, the snapshot when not. Storage is best-effort — if IndexedDB fails (private mode, quota), the POS behaves as it did before.
+
+## Step 3: Queue orders locally
+
+Offline orders go into a queue with a provisional id. They use the **exact same payload** the API expects, so syncing is just replaying the request:
+
+```ts
+type QueuedOrder = {
+  localId: string;               // "OFF-…" until the server assigns a real number
+  payload: CreateOrderInput;
+  status: "pending" | "failed";
+  error?: string;
+};
+```
+
+Every change to the queue dispatches a window event, so any component showing the queue re-renders without shared global state.
+
+## Step 4: Sync on reconnect
+
+When the connection comes back, the queue replays in order. The important part is telling apart two kinds of failure:
+
+```ts
+for (const item of queue) {
+  try {
+    await orderService.create(item.payload);
+    removeFromQueue(item.localId);
+  } catch (err) {
+    if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
+      markFailed(item.localId, err.message); // the server rejected it — needs a human
+    } else {
+      break; // network error — stop, try again on the next "online" event
+    }
+  }
+}
+```
+
+- A **4xx** means the server looked at the order and said no (an item was deleted, for example). Retrying won't help, so it's flagged for review.
+- A **network error** means we're not really online yet. Stop and keep everything queued.
+
+A small status bar shows *Offline*, *Syncing…* or *N orders need review*. A review dialog lets staff retry or discard failed orders, so nothing disappears silently.
+
+## Step 5: Survive a full reload
+
+Queues and snapshots don't help if refreshing the page shows the browser's offline dinosaur. A small service worker fixes that:
+
+- **Page navigations:** network-first, falling back to the cached app shell.
+- **`/_next/static` and assets:** cache-first (they're content-hashed).
+- **`/api`:** never cached, so API calls fail cleanly and fall into the offline queue instead of serving stale data.
+
+It only registers in production builds, because a service worker and dev-mode hot reload fight each other.
+
+## Deliberate limits
+
+Being clear about what offline mode *doesn't* do was as important as building it:
+
+- **Cash or pay-later only.** Card payments need the network, so they're blocked with a clear message.
+- **No editing existing orders offline.** Only new orders are queued.
+- **No offline promo validation.** Discounts stay server-authoritative.
+- **Other terminals won't see queued orders** until they sync.
+
+These limits keep the system honest: offline mode is a fallback that keeps the restaurant running, not a second source of truth that has to be merged later.
+
+## Takeaways
+
+- Scope offline support to the one job that must not stop: taking orders.
+- Replay the same API payload instead of inventing an offline protocol.
+- Tell "server rejected" apart from "not reachable" — they need opposite handling.
+- Make failures visible and fixable by staff, never silent.

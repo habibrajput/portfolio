@@ -1,0 +1,83 @@
+---
+title: "Permissions in NestJS Where Nobody Gets a Free Pass — Not Even the Owner"
+publishedAt: "2026-08-28"
+summary: "Role checks scattered across controllers drift out of sync with what the admin UI promises. Here's the grant-driven permission guard I built for a multi-tenant SaaS, with per-module grants that apply without re-login."
+author: "Habib Ur Rehman"
+---
+
+In a multi-tenant SaaS, the Roles & Permissions screen makes a promise: *"Waiters can view reservations but not edit the menu."* The backend has to keep that promise on every single endpoint. In TableTab I found the classic problem — hard-coded role checks in some controllers, an `isSuperAdmin` shortcut in others, and a UI that could say one thing while the API did another.
+
+So I rebuilt authorization around one idea: **grants decide access, for every role.**
+
+## Modules and actions
+
+Permissions are defined as a catalog of **modules** (`orders`, `menu`, `reservations`, `reports`, `settings`, …) and **actions** (`read`, `create`, `update`, `delete`). A role is simply a set of grants like `orders:read` or `menu:update`. The admin UI edits those grants; nothing else is special.
+
+## A decorator and a guard
+
+Controllers declare what they need:
+
+```ts
+@Controller("menu")
+export class MenuController {
+  @Get()
+  @Public() // storefront and POS read the menu without staff auth
+  list() { /* … */ }
+
+  @Put(":id")
+  @RequirePermission("menu")
+  update(@Param("id") id: string, @Body() dto: UpdateMenuItemDto) { /* … */ }
+}
+```
+
+The guard does the rest. If the action isn't given explicitly, it's inferred from the HTTP verb, which keeps the decorators short:
+
+```ts
+const VERB_TO_ACTION = { GET: "read", POST: "create", PUT: "update", PATCH: "update", DELETE: "delete" } as const;
+
+@Injectable()
+export class PermissionGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(ctx: ExecutionContext): boolean {
+    const handlers = [ctx.getHandler(), ctx.getClass()];
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, handlers)) return true;
+
+    const required = this.reflector.getAllAndOverride<RequiredPermission>(PERMISSION, handlers);
+    if (!required) return true;
+
+    const req = ctx.switchToHttp().getRequest();
+    const action = required.action ?? VERB_TO_ACTION[req.method as keyof typeof VERB_TO_ACTION];
+    return req.user?.grants?.has(`${required.module}:${action}`) ?? false;
+  }
+}
+```
+
+## No bypass for the Owner
+
+The most important decision: **`isSuperAdmin` no longer skips authorization.** The Owner role is checked against its grants exactly like a Waiter.
+
+That sounds strict, but it removes a whole class of bugs. When the Owner bypassed checks, nobody noticed that a module was missing from the Owner's grants — until a restaurant hired a manager with "Owner-like" permissions and half the screens returned 403. With one code path for everyone, the permission matrix is the *only* truth, and it gets exercised constantly.
+
+`isSuperAdmin` still exists, but only for **business logic** (for example, seeing every branch instead of one) — never for access control.
+
+Removing the bypass needs one guardrail: an Owner must not be able to remove their own `settings` access and lock the whole tenant out. The service that updates grants rejects that change.
+
+## Changes apply without re-login
+
+Putting grants inside the JWT would mean a permission change only takes effect after the user logs in again. Instead, the auth strategy loads the role's grants **fresh from the database on each request**. It's one indexed query, and it means revoking access is immediate — which is exactly what an owner expects when they remove a staff member's access mid-shift.
+
+## Frontend mirrors, backend enforces
+
+The Next.js admin uses the same catalog. Each nav item maps to a module, and the page guard hides screens the user can't read. But that's a UX convenience only — the API guard is the real enforcement. If the UI and API ever disagree, the API wins.
+
+## Test the matrix, not the code
+
+The best safety net was a small script that logs in as each seeded role and hits a list of endpoints, asserting the expected `200` or `403` for each one. Adding a new module means adding a row to that matrix. It catches the regressions that unit tests on the guard itself never would.
+
+## Takeaways
+
+- Express permissions as data (module + action grants), not as role names in code.
+- Give every role — including the Owner — the same code path, and add targeted guardrails instead of bypasses.
+- Read grants per request so revocation is immediate.
+- Test authorization as a matrix of roles × endpoints.

@@ -1,0 +1,108 @@
+---
+title: "Why I Picked Server-Sent Events Over WebSockets for a Restaurant POS"
+publishedAt: "2026-09-02"
+summary: "Almost all realtime traffic in a restaurant platform flows server → client. Here's how TableTab streams order status, kitchen boards and menu availability with plain SSE in NestJS — and where the sharp edges were."
+author: "Habib Ur Rehman"
+---
+
+When I started adding realtime updates to **TableTab**, the restaurant POS I've been building, my first instinct was WebSockets. Everyone reaches for them. But when I listed what actually needed to be live, a pattern jumped out:
+
+- A guest watching their order go from *confirmed* → *preparing* → *ready*
+- The kitchen display board refreshing when a new order lands
+- The storefront hiding an item the moment staff mark it sold out
+- Floor staff seeing table occupancy change
+
+Every one of those is **server → client**. The client never needs to push anything over the live channel — it already has a REST API for that. That's exactly the problem Server-Sent Events were designed for.
+
+## Why SSE fit better
+
+- **It's just HTTP.** No upgrade handshake, no special proxy config. It goes through Nginx and Cloudflare like any other response.
+- **Reconnection is built in.** The browser's `EventSource` reconnects on its own.
+- **NestJS supports it natively** with the `@Sse()` decorator returning an RxJS `Observable`.
+- **Less to operate.** No socket rooms, no sticky-session gymnastics for the common case.
+
+## One bus, many channels
+
+The whole realtime layer is a single global service wrapping an RxJS `Subject`. Services publish to a named channel; SSE endpoints subscribe to one.
+
+```ts
+@Global()
+@Injectable()
+export class RealtimeService {
+  private readonly bus = new Subject<RealtimeEvent>();
+
+  publish(channel: string, type: string, data: unknown) {
+    this.bus.next({ channel, type, data });
+  }
+
+  channel(name: string): Observable<RealtimeEvent> {
+    return this.bus.pipe(filter((e) => e.channel === name));
+  }
+}
+```
+
+Channels are scoped by tenant or entity: `order:<id>`, `board:<tenantId>`, `menu:<tenantId>`, `tables:<tenantId>`. Every endpoint shares one helper that maps a channel to SSE messages and adds a heartbeat so idle proxies don't drop the connection:
+
+```ts
+export function sseFromChannel(realtime: RealtimeService, channel: string) {
+  const events = realtime.channel(channel).pipe(
+    map((e) => ({ data: { event: e.type, ...(e.data as object) } })),
+  );
+  const heartbeat = interval(25_000).pipe(map(() => ({ data: { event: "ping" } })));
+  return merge(events, heartbeat);
+}
+```
+
+## Publish after commit — never before
+
+The most important rule: **emit only after the database transaction commits.** If you publish inside the transaction and it rolls back, clients have already reacted to a state that never existed.
+
+```ts
+const order = await this.transactionService.execute(async (qr) => {
+  const saved = await qr.manager.save(Order, input);
+  await qr.manager.save(OrderItem, items.map((i) => ({ ...i, orderId: saved.id })));
+  return saved;
+});
+
+// Committed — now it's safe to tell the world.
+this.realtime.publish(`order:${order.id}`, "order.updated", {
+  id: order.id,
+  status: order.status,
+  updatedAt: order.updatedAt,
+});
+```
+
+Payloads stay minimal — an id, a status and a timestamp. No customer data goes over a public stream.
+
+## The sharp edge: auth headers
+
+Public streams (order tracking by UUID, menu availability) work perfectly with native `EventSource`. Staff streams like the kitchen board need a JWT — and **`EventSource` can't send an `Authorization` header.**
+
+Rather than leaking tokens into query strings, staff screens read the stream with `fetch` and parse the event-stream format themselves:
+
+```ts
+const res = await fetch(url, {
+  headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
+  signal,
+});
+const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
+// Split on blank lines, parse `data:` lines, reconnect with backoff on close.
+```
+
+It's about forty lines of client code and it keeps credentials out of URLs and logs.
+
+## Clients reconcile, then apply deltas
+
+A live stream is never the source of truth. On mount, the order tracking page fetches the order over REST, *then* applies stream events on top. A slow safety-net poll catches anything missed during a reconnect. For heavier views like the kitchen board, events simply trigger a debounced refetch — simpler than patching lists by hand, and the board is small.
+
+## Scaling past one instance
+
+An in-memory `Subject` only works while there's a single API replica. The design keeps that seam in one place: to scale out, `publish()` fans out through Redis pub/sub and each instance feeds its local subject. Channel names, endpoints and clients don't change.
+
+## Takeaways
+
+- Before choosing WebSockets, check which direction your realtime traffic actually flows.
+- Publish after commit, keep payloads minimal, and let clients reconcile over REST.
+- Plan for `EventSource`'s auth limitation up front if any stream is private.
+
+SSE isn't flashy, but for a POS where the server does almost all the talking, it has been the calmest part of the stack.

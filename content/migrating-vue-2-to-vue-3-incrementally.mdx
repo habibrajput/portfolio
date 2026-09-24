@@ -1,0 +1,80 @@
+---
+title: "Migrating a Production SaaS From Vue 2 to Vue 3 Without a Rewrite"
+publishedAt: "2026-07-15"
+summary: "Lessons from moving legacy Vue 2 modules in a large SaaS to Vue 3: why a big-bang rewrite was off the table, how the compat build buys you time, and the breaking changes that actually bite."
+author: "Habib Ur Rehman"
+---
+
+At RepairDesk I worked on moving legacy Vue 2 modules in a large, busy SaaS platform to Vue 3. Vue 2 reached end of life at the end of 2023, so staying put meant no more security fixes — but a big-bang rewrite of a product that repair shops use all day was never an option. This is the approach that works for this kind of migration, and the breaking changes that deserve the most attention.
+
+## Rule one: no big bang
+
+A rewrite freezes features for months and ships every bug at once. Instead, treat the migration like any other feature work:
+
+- Migrate **module by module**, shipping each one to production.
+- Keep the app working at every step.
+- Prefer boring, mechanical changes over clever ones.
+
+## The compat build buys you time
+
+Vue 3 ships a migration build, `@vue/compat`, that runs most Vue 2 code while logging a warning for every deprecated behaviour. You switch the runtime to Vue 3 first, then fix warnings gradually:
+
+```js
+// vite.config.js
+export default defineConfig({
+  resolve: {
+    alias: { vue: "@vue/compat" },
+  },
+  plugins: [
+    vue({
+      template: {
+        compilerOptions: { compatConfig: { MODE: 2 } },
+      },
+    }),
+  ],
+});
+```
+
+Once a module has no compat warnings left, you can opt it into pure Vue 3 behaviour with `compatConfig: { MODE: 3 }` in that component — so progress is visible and can't silently regress.
+
+## The breaking changes that bite
+
+Most of the migration guide is mechanical. These are the parts that deserve the most care:
+
+**Global API → app instance.** `Vue.use`, `Vue.component` and `Vue.prototype` move onto the app:
+
+```js
+// Vue 2
+Vue.prototype.$http = http;
+
+// Vue 3
+const app = createApp(App);
+app.config.globalProperties.$http = http;
+```
+
+**Filters are gone.** `{{ price | currency }}` has to become a method or computed property. Search the templates for `|` early — filters hide everywhere.
+
+**`v-model` on components changed.** The default prop/event went from `value`/`input` to `modelValue`/`update:modelValue`. Every custom input component needs updating, and so does every place that uses it with `.sync`.
+
+**Event bus pattern removed.** `$on`, `$off` and `$once` no longer exist, so the classic `new Vue()` event bus breaks. A tiny emitter such as `mitt`, or moving the shared state into a store, fixes it.
+
+**`v-if` / `v-for` precedence flipped.** On the same element, `v-if` now runs *before* `v-for`. Code that filtered list items with `v-if` on the loop suddenly can't see the loop variable. Move the filter into a computed property.
+
+**Third-party plugins.** Often the real blocker isn't your code but a UI library or plugin that never got a Vue 3 version. Audit dependencies first — some will need replacing, and that decides your order of work.
+
+## Don't convert to the Composition API at the same time
+
+Vue 3 still supports the Options API. Migrating the framework and rewriting components to `<script setup>` at the same time doubles the risk and makes regressions hard to track down. Move to Vue 3 first; adopt the Composition API later, where it clearly helps (shared logic that used to live in mixins is the best candidate).
+
+## Testing a moving target
+
+- Check each migrated module's main user flows by hand before release, not just the component in isolation.
+- Watch the compat warnings in the console — they're a free checklist.
+- Release in small batches so any regression points straight at a small diff.
+
+## Takeaways
+
+- Upgrade the runtime first with `@vue/compat`, then fix warnings module by module.
+- Audit third-party dependencies before anything else.
+- Filters, `v-model`, event buses and `v-if`/`v-for` precedence cause most of the real work.
+- Keep framework migration and Composition API refactors separate.
