@@ -133,10 +133,17 @@ const CERTIFICATIONS: readonly Certification[] = [
   },
 ];
 
+// Vercel provides the production domain at build time; fall back to localhost in dev.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
 export const DATA = {
   name: "Habib Ur Rehman",
   initials: "HR",
-  url: "http://localhost:3000",
+  url: SITE_URL,
   location: "Lahore, Pakistan",
   locationLink: "https://www.google.com/maps/place/Lahore",
   description:
