@@ -15,6 +15,14 @@ import type { ReactNode } from "react";
 
 const BLUR_FADE_DELAY = 0.04;
 
+const CONTACT_LINKS = [
+  { label: DATA.contact.email, href: `mailto:${DATA.contact.email}`, icon: Mail, external: false },
+  { label: DATA.contact.telDisplay, href: `tel:${DATA.contact.tel}`, icon: Phone, external: false },
+  { label: DATA.location, href: DATA.locationLink, icon: MapPin, external: true },
+  { label: "GitHub", href: DATA.contact.social.GitHub.url, icon: DATA.contact.social.GitHub.icon, external: true },
+  { label: "LinkedIn", href: DATA.contact.social.LinkedIn.url, icon: DATA.contact.social.LinkedIn.icon, external: true },
+];
+
 function CertificationLink({ href, children }: { href?: string; children: ReactNode }) {
   const className = "flex items-center gap-x-3 justify-between group";
   if (!href) return <div className={className}>{children}</div>;
@@ -44,25 +52,19 @@ export default function Page() {
                 text={DATA.description}
               />
               <BlurFade delay={BLUR_FADE_DELAY * 2}>
-                <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-                  <li>
-                    <a href={`mailto:${DATA.contact.email}`} className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
-                      <Mail className="size-4" aria-hidden />
-                      {DATA.contact.email}
-                    </a>
-                  </li>
-                  <li>
-                    <a href={`tel:${DATA.contact.tel}`} className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
-                      <Phone className="size-4" aria-hidden />
-                      {DATA.contact.telDisplay}
-                    </a>
-                  </li>
-                  <li>
-                    <a href={DATA.locationLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
-                      <MapPin className="size-4" aria-hidden />
-                      {DATA.location}
-                    </a>
-                  </li>
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {CONTACT_LINKS.map(({ label, href, icon: Icon, external }) => (
+                    <li key={href}>
+                      <a
+                        href={href}
+                        {...(external && { target: "_blank", rel: "noopener noreferrer" })}
+                        className="inline-flex h-8 items-center gap-2 rounded-xl border border-border bg-background px-3 text-sm text-muted-foreground ring-2 ring-border/20 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Icon className="size-4 shrink-0" aria-hidden />
+                        {label}
+                      </a>
+                    </li>
+                  ))}
                 </ul>
               </BlurFade>
             </div>
