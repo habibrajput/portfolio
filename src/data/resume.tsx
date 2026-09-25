@@ -155,14 +155,10 @@ export const DATA = {
     {
       urn: "urn:li:share:7509128354436984832",
       title: "LinkedIn post by Habib Ur Rehman: moving our product to a monorepo",
-      height: 230,
-      section: "featured",
     },
     {
       urn: "urn:li:ugcPost:7507472101587464193",
       title: "LinkedIn post by Habib Ur Rehman: Claude Code certification",
-      height: 567,
-      section: "certifications",
     },
   ],
   avatarUrl: "/me.jpg",

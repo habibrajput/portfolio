@@ -11,7 +11,6 @@ import ProjectsSection from "@/components/section/projects-section";
 import WorkSection from "@/components/section/work-section";
 import GitHubSection from "@/components/section/github-section";
 import LinkedInSection from "@/components/section/linkedin-section";
-import { LinkedInEmbed } from "@/components/linkedin-embed";
 import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -183,15 +182,6 @@ export default function Page() {
               </BlurFade>
             ))}
           </div>
-          {DATA.linkedinPosts
-            .filter((post) => post.section === "certifications")
-            .map((post) => (
-              <BlurFade key={post.urn} delay={BLUR_FADE_DELAY * 9.5}>
-                <div className="flex justify-center">
-                  <LinkedInEmbed {...post} />
-                </div>
-              </BlurFade>
-            ))}
         </div>
       </section>
       <section id="skills">
