@@ -151,6 +151,24 @@ export const DATA = {
   summary:
     "I'm a Senior Software Engineer with **6+ years** of experience building and scaling web products — from multi-tenant SaaS and learning platforms to e-commerce, fintech and restaurant POS systems.\n\nI work across the whole stack: **Laravel** and **NestJS** on the backend, **Vue.js**, **React** and **Next.js** on the frontend, **MySQL**, **PostgreSQL** and **Redis** underneath, shipped with Docker, CI/CD pipelines and AWS.\n\nI care most about software that holds up in production — secure payment flows, fast checkouts, POS systems that keep selling when the network drops, and architecture the next engineer can extend without fear. I enjoy turning fuzzy requirements into clean, modular systems, working closely with product and design to get there.",
   githubUsername: "habibrajput",
+  gallery: [
+    {
+      city: "Dubai",
+      country: "UAE",
+      photos: [
+        { src: "/gallery/dubai/jbr-beach-ain-dubai.webp", alt: "Sunset on JBR beach with the Ain Dubai wheel behind", width: 750, height: 1000 },
+        { src: "/gallery/dubai/dubai-frame-fireworks.webp", alt: "New Year fireworks at the Dubai Frame", width: 750, height: 1000 },
+        { src: "/gallery/dubai/downtown-dubai.webp", alt: "Downtown Dubai by the Burj Lake at dusk", width: 750, height: 1000 },
+        { src: "/gallery/dubai/dhow-cruise.webp", alt: "Evening dhow cruise on the water", width: 750, height: 1000 },
+        { src: "/gallery/dubai/office.webp", alt: "Working with a colleague at the office in Dubai", width: 1000, height: 750 },
+        { src: "/gallery/dubai/dubai-mall.webp", alt: "At Dubai Mall", width: 750, height: 1000 },
+        { src: "/gallery/dubai/burj-fountain.webp", alt: "Night at the Dubai Fountain promenade", width: 400, height: 900 },
+        { src: "/gallery/dubai/night-walk.webp", alt: "Late-night walk through the city", width: 1000, height: 750 },
+        { src: "/gallery/dubai/mall-christmas.webp", alt: "Christmas display at a Dubai mall", width: 750, height: 1000 },
+        { src: "/gallery/dubai/evening-cafe.webp", alt: "Evening coffee with a friend", width: 563, height: 1000 },
+      ],
+    },
+  ],
   linkedinPosts: [
     {
       urn: "urn:li:share:7509128354436984832",
