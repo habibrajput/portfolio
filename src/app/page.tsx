@@ -10,6 +10,7 @@ import AchievementsSection from "@/components/section/achievements-section";
 import ProjectsSection from "@/components/section/projects-section";
 import WorkSection from "@/components/section/work-section";
 import GitHubSection from "@/components/section/github-section";
+import LinkedInSection from "@/components/section/linkedin-section";
 import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -217,6 +218,11 @@ export default function Page() {
           </BlurFade>
         </section>
       )}
+      <section id="linkedin">
+        <BlurFade delay={BLUR_FADE_DELAY * 14}>
+          <LinkedInSection />
+        </BlurFade>
+      </section>
       <section id="contact">
         <BlurFade delay={BLUR_FADE_DELAY * 16}>
           <ContactSection />
