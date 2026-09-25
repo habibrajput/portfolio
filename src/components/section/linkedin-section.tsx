@@ -1,3 +1,4 @@
+import { LinkedInEmbed } from "@/components/linkedin-embed";
 import { DATA } from "@/data/resume";
 
 export default function LinkedInSection() {
@@ -19,17 +20,11 @@ export default function LinkedInSection() {
         </div>
       </div>
       <div className="flex flex-col items-center gap-6">
-        {DATA.linkedinPosts.map((post) => (
-          <iframe
-            key={post.urn}
-            src={`https://www.linkedin.com/embed/feed/update/${post.urn}`}
-            title={post.title}
-            height={post.height}
-            loading="lazy"
-            allowFullScreen
-            className="w-full max-w-[504px] rounded-xl border border-border bg-white"
-          />
-        ))}
+        {DATA.linkedinPosts
+          .filter((post) => post.section === "featured")
+          .map((post) => (
+            <LinkedInEmbed key={post.urn} {...post} />
+          ))}
       </div>
     </div>
   );
