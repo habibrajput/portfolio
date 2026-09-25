@@ -166,6 +166,7 @@ export const DATA = {
         { src: "/gallery/dubai/night-walk.webp", alt: "Late-night walk through the city", width: 1000, height: 750 },
         { src: "/gallery/dubai/mall-christmas.webp", alt: "Christmas display at a Dubai mall", width: 750, height: 1000 },
         { src: "/gallery/dubai/evening-cafe.webp", alt: "Evening coffee with a friend", width: 563, height: 1000 },
+        { src: "/gallery/dubai/pakistan-latte.webp", alt: "A latte with \"Pakistan\" in the foam art at a Dubai café", width: 500, height: 554 },
       ],
     },
   ],
